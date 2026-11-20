@@ -1,0 +1,148 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#14171c"><link rel="manifest" href="manifest.json"><title>Daily Habits</title>
+<style>
+:root{--bg:#eef0f3;--card:#fff;--fg:#14171c;--mu:#667085;--ln:#dde1e7;--cell:#f1f3f6;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1013;--card:#171a20;--fg:#eceef2;--mu:#98a2b3;--ln:#2a2f38;--cell:#222732}}
+*{box-sizing:border-box}html,body{margin:0}body{background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:12px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+h1{font-size:22px;margin:0;letter-spacing:-.01em;text-align:center;flex:1}
+button{font:inherit;color:inherit;cursor:pointer}
+.nav{width:44px;height:44px;border-radius:12px;border:1px solid var(--ln);background:var(--card);font-size:20px}
+.card{background:var(--card);border:1px solid var(--ln);border-radius:14px;padding:12px;margin-bottom:10px}
+.st{display:flex;gap:8px}.st div{flex:1;background:var(--cell);border-radius:10px;padding:8px;font-size:12px;color:var(--mu)}.st b{display:block;font-size:24px;color:var(--fg)}
+.lg{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:12px;color:var(--mu);margin-bottom:10px}.lg i{display:inline-block;width:12px;height:12px;border-radius:4px;vertical-align:-2px;margin-right:4px}
+.sc{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{border-collapse:separate;border-spacing:3px;font-size:11px}
+th{font-weight:500;color:var(--mu);min-width:30px}th.td{color:var(--fg);font-weight:800;text-decoration:underline}
+td.n,th.n{position:sticky;left:0;background:var(--card);z-index:1;min-width:132px;max-width:132px;text-align:left;font-size:13px;padding-right:6px;white-space:normal}
+td.a{font-weight:700;font-size:12px;text-align:center;padding-left:4px}
+.c{width:30px;height:30px;border-radius:8px;border:0;background:var(--cell);font-weight:700;font-size:13px;padding:0}
+td.n input{width:96px;font:inherit;font-size:13px;color:var(--fg);background:var(--cell);border:1px solid var(--ln);border-radius:6px;padding:4px}
+.x{border:0;background:none;color:#e5484d;font-size:14px;padding:4px}
+.row{display:flex;gap:8px;flex-wrap:wrap}.b{padding:10px 14px;border-radius:10px;border:1px solid var(--ln);background:var(--card);font-weight:600}.b.p{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+#ov{position:fixed;inset:0;background:#0008;display:flex;align-items:flex-end;justify-content:center;z-index:9}#ov[hidden]{display:none}
+.pk{background:var(--card);width:100%;max-width:480px;border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px))}
+.pk p{margin:0 0 12px;font-weight:600}.rg{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:10px}
+.rg button{height:48px;border:0;border-radius:12px;font-size:18px;font-weight:700}.rg button.sel{outline:3px solid var(--fg);outline-offset:2px}
+.pk input{width:100%;font:inherit;padding:12px;margin-bottom:8px;border-radius:10px;border:1px solid var(--ln);background:var(--cell);color:var(--fg)}
+.hint{font-size:12px;color:var(--mu);margin:6px 2px 0}
+</style></head><body><main>
+<div class="top"><button class="nav" id="pv" aria-label="Previous month">‹</button><h1 id="mt"></h1><button class="nav" id="nx" aria-label="Next month">›</button></div>
+<div class="card st" id="st"></div>
+<div class="card"><div class="lg" id="lg"></div><div class="sc" id="gr"></div><p class="hint">Tap a day to rate a habit from 0 to 10.</p></div>
+<div class="row"><button class="b p" id="ed"></button><button class="b" id="ad" hidden>+ Add habit</button><button class="b" id="rm"></button><button class="b" id="ac">Account &amp; sync</button></div>
+<p class="hint" id="sy"></p>
+<p class="hint" id="hn"></p>
+</main><div id="ov" hidden></div>
+<script>
+const KEY="habits-v2",$=i=>document.getElementById(i);
+const DEF=["Sleep 6+ hours","Drink 2L water","Read 20 pages","Move for 30 min","Eat my greens","Phone off by 10pm","Journal","Time with family"];
+const ym=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let S={cur:ym(new Date()),m:{},rem:null,last:""},edit=false,pend=null;
+try{Object.assign(S,JSON.parse(localStorage.getItem(KEY)||"{}"))}catch(e){}
+S.cur=ym(new Date());
+const persist=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};const save=()=>{persist();sched()};
+for(const k in S.m){const m=S.m[k];m.t=m.t||{};m.ht=m.ht||0;for(const c in m.r)if(m.t[c]==null)m.t[c]=1}
+const col=v=>v<=1?["#e5484d","#fff"]:v<=4?["#f5922b","#201400"]:v<=6?["#f2d14b","#1f1a00"]:v<=8?["#9ad97a","#0d2a0a"]:["#16813f","#fff"];
+const LEG=[["0–1","Very poor",0],["2–4","Poor",3],["5–6","Done some",5],["7–8","Good",7],["9–10","Great",9]];
+$("lg").innerHTML=LEG.map(l=>`<span><i style="background:${col(l[2])[0]}"></i>${l[0]} ${l[1]}</span>`).join("");
+function sheet(k){if(S.m[k])return S.m[k];
+ const p=Object.keys(S.m).filter(x=>x<k).sort().pop();
+ return S.m[k]={h:p?S.m[p].h.map(h=>({id:h.id,name:h.name})):DEF.map((n,i)=>({id:"h"+i,name:n})),ht:0,r:{},t:{}}}
+function render(){
+ const[y,mo]=S.cur.split("-").map(Number),n=new Date(y,mo,0).getDate(),sh=sheet(S.cur),now=new Date(),td=ym(now)===S.cur?now.getDate():0;
+ $("mt").textContent=new Date(y,mo-1,1).toLocaleString("en",{month:"long",year:"numeric"});
+ const v=Object.values(sh.r),days=new Set(Object.keys(sh.r).map(k=>k.split(",")[1])).size;
+ const tv=td?sh.h.map(h=>sh.r[h.id+","+(td-1)]).filter(x=>x!=null):[];
+ $("st").innerHTML=`<div><b>${v.length?(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1):"–"}</b>Month average</div><div><b>${days}</b>Days rated</div><div><b>${tv.length?(tv.reduce((a,b)=>a+b,0)/tv.length).toFixed(1):"–"}</b>Today</div>`;
+ const hd=`<tr><th class="n"></th>${[...Array(n)].map((_,d)=>`<th class="${d+1===td?"td":""}">${d+1}</th>`).join("")}<th>Avg</th></tr>`;
+ const rows=sh.h.map(h=>{let s=0,c=0;
+  const cells=[...Array(n)].map((_,d)=>{const r=sh.r[h.id+","+d];if(r!=null){s+=r;c++}const k=r!=null?col(r):null;
+   return `<td><button class="c" data-h="${h.id}" data-d="${d}" ${k?`style="background:${k[0]};color:${k[1]}"`:""} aria-label="${esc(h.name)}, day ${d+1}">${r??""}</button></td>`}).join("");
+  const nm=edit?`<input data-n="${h.id}" value="${esc(h.name)}"><button class="x" data-x="${h.id}" aria-label="Delete ${esc(h.name)}">✕</button>`:esc(h.name);
+  return `<tr><td class="n">${nm}</td>${cells}<td class="a">${c?(s/c).toFixed(1):"–"}</td></tr>`}).join("");
+ $("gr").innerHTML=`<table>${hd}${rows}</table>`;
+ $("ed").textContent=edit?"Done editing":"Edit this month's habits";$("ad").hidden=!edit;
+ $("rm").textContent=S.rem?"Reminder 7:00 pm IST: on":"Turn on 7:00 pm IST reminder";
+ $("hn").textContent=edit?"Changes apply to this month. Next month starts with a copy of this list.":"Each month has its own sheet. Use ‹ › to switch.";
+}
+function open(h,d){const sh=sheet(S.cur),H=sh.h.find(x=>x.id===h),cur=sh.r[h+","+d];pend={h,d};
+ $("ov").innerHTML=`<div class="pk"><p>${esc(H.name)} · day ${d+1}</p><div class="rg">${[...Array(11)].map((_,v)=>`<button data-v="${v}" class="${cur===v?"sel":""}" style="background:${col(v)[0]};color:${col(v)[1]}">${v}</button>`).join("")}</div><button class="b" data-v="clear" style="width:100%">Clear rating</button></div>`;$("ov").hidden=false}
+document.addEventListener("click",e=>{
+ const t=e.target.closest("button"),sh=sheet(S.cur);
+ if(e.target.id==="ov"){$("ov").hidden=true;return}
+ if(!t)return;const D=t.dataset;
+ if(t.id==="ac"){acct();return}if(t.id==="cl"){$("ov").hidden=true;return}
+ if(t.id==="si"||t.id==="su"){login(t.id==="su");return}
+ if(t.id==="so"){A=null;localStorage.removeItem(AK);$("ov").hidden=true;status();return}
+ if(D.v!=null&&pend){const k=pend.h+","+pend.d;D.v==="clear"?delete sh.r[k]:sh.r[k]=+D.v;sh.t[k]=Date.now();$("ov").hidden=true;pend=null}
+ else if(D.h!=null){open(D.h,+D.d);return}
+ else if(D.x){if(!confirm("Delete this habit from this month?"))return;sh.h=sh.h.filter(h=>h.id!==D.x);sh.ht=Date.now();for(const k in sh.r)if(k.startsWith(D.x+",")){delete sh.r[k];sh.t[k]=Date.now()}}
+ else if(t.id==="ad"){sh.h.push({id:"h"+Date.now(),name:"New habit"});sh.ht=Date.now()}
+ else if(t.id==="ed")edit=!edit;
+ else if(t.id==="pv"||t.id==="nx"){const[y,m]=S.cur.split("-").map(Number),d=new Date(y,m-1+(t.id==="nx"?1:-1),1);S.cur=ym(d)}
+ else if(t.id==="rm"){setRem(!S.rem).then(render);return}
+ else return;
+ save();render()});
+document.addEventListener("input",e=>{const id=e.target.dataset.n;if(!id)return;const h=sheet(S.cur).h.find(x=>x.id===id);if(h){h.name=e.target.value;sheet(S.cur).ht=Date.now();save()}});
+/* 7 pm IST reminder: native (Capacitor APK) is reliable; browser only while the app is open */
+const LN=window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()?Capacitor.registerPlugin("LocalNotifications"):null;
+const istLocal=()=>{const d=new Date(Date.UTC(2026,0,15,13,30));return{hour:d.getHours(),minute:d.getMinutes()}};
+async function setRem(on){
+ try{
+  if(LN){await LN.cancel({notifications:[{id:19}]}).catch(()=>{});
+   if(on){const p=await LN.requestPermissions();if(p.display!=="granted"){alert("Allow notifications for Daily Habits in Android settings.");return}
+    await LN.schedule({notifications:[{id:19,title:"Rate your habits",body:"Take a minute to log today's habits.",schedule:{on:istLocal(),allowWhileIdle:true}}]})}}
+  else if(on&&"Notification"in window&&await Notification.requestPermission()!=="granted"){alert("Notifications are blocked in this browser.");return}
+  S.rem=on;save()}catch(e){alert("Could not set the reminder: "+e.message)}}
+setInterval(()=>{if(LN||!S.rem||!("Notification"in window)||Notification.permission!=="granted")return;
+ const t=new Date(Date.now()+19800000),k=t.toISOString().slice(0,10);
+ if(t.getUTCHours()>=19&&S.last!==k){S.last=k;save();new Notification("Rate your habits",{body:"Take a minute to log today's habits."})}},30000);
+if(LN&&S.rem==null)setRem(true).then(render);
+/* cloud sync: Supabase REST, offline-first. Fill in your project URL and anon key. */
+const CFG={url:"YOUR_SUPABASE_URL",key:"YOUR_SUPABASE_ANON_KEY"},AK="habits-auth",cloudOn=!CFG.url.startsWith("YOUR");
+let A=null,syncing=false,again=false,timer=null,msg="";
+try{A=JSON.parse(localStorage.getItem(AK))}catch(e){}
+const canon=o=>JSON.stringify(o,(k,v)=>v&&typeof v==="object"&&!Array.isArray(v)?Object.fromEntries(Object.entries(v).sort()):v);
+function status(){$("sy").textContent=!cloudOn?"Cloud sync is not set up yet.":!A?"Not signed in. Data is saved on this device only.":msg||"Signed in as "+A.email}
+async function api(path,opt,token){opt=opt||{};
+ const r=await fetch(CFG.url+path,{method:opt.method||"GET",body:opt.body,headers:Object.assign({apikey:CFG.key,"Content-Type":"application/json"},token?{Authorization:"Bearer "+token}:{},opt.headers)});
+ const t=await r.text();let j=null;try{j=t?JSON.parse(t):null}catch(e){}
+ if(!r.ok){const e=new Error((j&&(j.msg||j.error_description||j.message))||"Request failed ("+r.status+")");e.status=r.status;throw e}return j}
+function setA(j,email){A={at:j.access_token,rt:j.refresh_token,exp:Date.now()+(j.expires_in-60)*1000,uid:j.user.id,email:email||A.email};localStorage.setItem(AK,JSON.stringify(A))}
+async function tok(){if(Date.now()>A.exp)setA(await api("/auth/v1/token?grant_type=refresh_token",{method:"POST",body:JSON.stringify({refresh_token:A.rt})}));return A.at}
+function merge(a,b){const out={};
+ for(const k of new Set([...Object.keys(a),...Object.keys(b)])){const x=a[k],y=b[k];
+  if(!x||!y){out[k]=x||y;continue}
+  const m={h:(x.ht||0)>=(y.ht||0)?x.h:y.h,ht:Math.max(x.ht||0,y.ht||0),r:{},t:{}};
+  for(const c of new Set([...Object.keys(x.t||{}),...Object.keys(y.t||{})])){
+   const tx=(x.t||{})[c]||0,ty=(y.t||{})[c]||0,w=tx>=ty?x:y;m.t[c]=Math.max(tx,ty);if((w.r||{})[c]!=null)m.r[c]=w.r[c]}
+  out[k]=m}return out}
+async function sync(){
+ if(!cloudOn||!A)return;if(syncing){again=true;return}
+ if(!navigator.onLine){msg="Offline. Will sync when you're back online.";status();return}
+ syncing=true;msg="Syncing…";status();
+ try{const t=await tok();
+  const rows=await api("/rest/v1/habit_data?select=data",{},t),remote=(rows&&rows[0]&&rows[0].data&&rows[0].data.m)||{};
+  const merged=merge(S.m,remote);S.m=merged;persist();
+  if(canon(merged)!==canon(remote))await api("/rest/v1/habit_data",{method:"POST",headers:{Prefer:"resolution=merge-duplicates"},body:JSON.stringify({user_id:A.uid,data:{m:merged},updated_at:new Date().toISOString()})},t);
+  msg="Synced ✓ "+new Date().toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
+  if(!document.activeElement||document.activeElement.tagName!=="INPUT")render();
+ }catch(e){
+  if(e.status===400||e.status===401){A=null;localStorage.removeItem(AK);alert("Your session expired. Please sign in again.")}
+  else msg=navigator.onLine?"Sync failed: "+e.message:"Offline. Will sync when you're back online."}
+ syncing=false;status();if(again){again=false;sched()}}
+function sched(){clearTimeout(timer);timer=setTimeout(sync,1500)}
+function acct(){$("ov").innerHTML=`<div class="pk"><p>Account &amp; sync</p>`+(!cloudOn?`<p class="hint">Add your Supabase URL and key in www/index.html first (see README).</p>`:A?`<p>Signed in as ${esc(A.email)}</p><button class="b" id="so" style="width:100%">Sign out</button>`:`<input id="em" type="email" placeholder="Email" autocomplete="email"><input id="pw" type="password" placeholder="Password (6+ characters)" autocomplete="current-password"><p class="hint" id="er"></p><div class="row"><button class="b p" id="si">Sign in</button><button class="b" id="su">Create account</button></div>`)+`<button class="b" id="cl" style="width:100%;margin-top:10px">Close</button></div>`;$("ov").hidden=false}
+async function login(create){const email=$("em").value.trim(),password=$("pw").value;$("er").textContent="";
+ try{const j=await api(create?"/auth/v1/signup":"/auth/v1/token?grant_type=password",{method:"POST",body:JSON.stringify({email,password})});
+  if(!j.access_token){$("er").textContent="Check your email to confirm, then sign in.";return}
+  setA(j,email);$("ov").hidden=true;sync()}catch(e){$("er").textContent=e.message}}
+window.addEventListener("online",sync);document.addEventListener("visibilitychange",()=>{if(!document.hidden)sync()});setInterval(sync,60000);
+if("serviceWorker"in navigator&&!LN&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js").catch(()=>{});
+status();sync();
+render();
+</script></body></html>
